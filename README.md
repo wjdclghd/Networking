@@ -2,9 +2,6 @@
 
 Clean Architecture + MVVM 환경에서 App 타겟이 SPM 모듈로 의존하는 형태를 전제로 만든 Networking 모듈입니다. 모듈 내부는 정책을 강제하지 않고, App 레벨에서 로깅/재시도/인증 전략을 주입할 수 있도록 확장 지점을 제공합니다.
 
-> Created by: JEONG, Chi-hong
-> Initial version: June 2026
-
 **요약**
 - 요청 생성: `Endpoint` + `NetworkRequestBuilder`
 - 실행 클라이언트: `URLSessionNetworkClient` 또는 `AlamofireNetworkClient`
@@ -193,3 +190,7 @@ let requestBuilder = NetworkRequestBuilder(
 - 모듈은 최소 정책만 제공
 - 로깅/재시도/인증 전략은 App 또는 상위 모듈에서 주입
 - 도메인별 정책 분리를 위해 `NetworkConfiguration`을 계층별로 구성
+
+
+Created by: JEONG, Chi-hong
+Initial version: June 2026

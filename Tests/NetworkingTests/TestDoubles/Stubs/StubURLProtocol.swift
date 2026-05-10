@@ -1,5 +1,5 @@
 //
-//  MockURLProtocol.swift
+//  StubURLProtocol.swift
 //  Networking
 //
 //  Created by jch on 3/22/26.
@@ -8,7 +8,8 @@
 import Foundation
 import XCTest
 
-final class MockURLProtocol: URLProtocol, @unchecked Sendable {
+/// 테스트에서 URLSession 네트워크 요청을 가로채 고정 응답을 반환하는 Stub입니다.
+final class StubURLProtocol: URLProtocol, @unchecked Sendable {
     typealias RequestHandler = (URLRequest) throws -> (HTTPURLResponse, Data)
 
     private static let lock = NSLock()

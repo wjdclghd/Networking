@@ -9,37 +9,35 @@ import Foundation
 import XCTest
 @testable import Networking
 
+/// `URLSessionNetworkClient`의 요청 실행, 응답 디코딩, 에러 매핑을 검증합니다.
 final class URLSessionNetworkClientTests: XCTestCase {
-    override func tearDown() {
-        super.tearDown()
-        MockURLProtocol.removeHandler()
+
+    // MARK: - Setup
+
+    override func tearDownWithError() throws {
+        StubURLProtocol.removeHandler()
+        try super.tearDownWithError()
     }
 
+    // MARK: - Tests
+
     func test_request_whenResponseIsSuccessful_returnsDecodedModel() async throws {
+        // given
         let sut = makeSUT(
             token: "test-token",
             defaultHeaders: ["X-App-Version": "1.0.0"]
         )
-
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/users/me",
             method: .get,
-            queryItems: [
-                URLQueryItem(name: "lang", value: "ko")
-            ],
+            queryItems: [URLQueryItem(name: "lang", value: "ko")],
             task: .plain,
             requiresAuthorization: true
         )
+        let expectedDTO = UserResponseFixture(id: 1, name: "jch")
 
-        let responseDTO = MockUserResponseDTO(
-            id: 1,
-            name: "jch"
-        )
-
-        let responseData = SampleResponseData.validUser
-
-        MockURLProtocol.setRequestHandler { request in
+        StubURLProtocol.setRequestHandler { request in
             XCTAssertEqual(request.httpMethod, "GET")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
             XCTAssertEqual(request.value(forHTTPHeaderField: "X-App-Version"), "1.0.0")
@@ -49,62 +47,62 @@ final class URLSessionNetworkClientTests: XCTestCase {
                 url: try XCTUnwrap(request.url),
                 statusCode: 200
             )
-
-            return (response, responseData)
+            return (response, SampleResponseData.validUser)
         }
 
-        let result = try await sut.request(endpoint, as: MockUserResponseDTO.self)
+        // when
+        let result = try await sut.request(endpoint, as: UserResponseFixture.self)
 
-        XCTAssertEqual(result, responseDTO)
+        // then
+        XCTAssertEqual(result, expectedDTO)
     }
 
     func test_request_whenResponseIsSuccessful_returnsRawData() async throws {
+        // given
         let sut = makeSUT()
-
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/health",
             method: .get
         )
-
         let expectedData = Data("ok".utf8)
 
-        MockURLProtocol.setRequestHandler { request in
+        StubURLProtocol.setRequestHandler { request in
             let response = try makeHTTPURLResponse(
                 url: try XCTUnwrap(request.url),
                 statusCode: 200
             )
-
             return (response, expectedData)
         }
 
+        // when
         let result = try await sut.request(endpoint)
 
+        // then
         XCTAssertEqual(result, expectedData)
     }
 
     func test_request_whenStatusCodeIsNot2xx_throwsServerError() async throws {
+        // given
         let sut = makeSUT()
-
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/users/me",
             method: .get
         )
-
         let expectedData = Data("server-error".utf8)
 
-        MockURLProtocol.setRequestHandler { request in
+        StubURLProtocol.setRequestHandler { request in
             let response = try makeHTTPURLResponse(
                 url: try XCTUnwrap(request.url),
                 statusCode: 500
             )
-
             return (response, expectedData)
         }
 
+        // when / then
         do {
-            let _: MockUserResponseDTO = try await sut.request(endpoint, as: MockUserResponseDTO.self)
+            let _: UserResponseFixture = try await sut.request(endpoint, as: UserResponseFixture.self)
             XCTFail("Expected server error, but succeeded.")
         } catch let error as NetworkError {
             switch error {
@@ -120,27 +118,25 @@ final class URLSessionNetworkClientTests: XCTestCase {
     }
 
     func test_request_whenDecodingFails_throwsDecodingError() async throws {
+        // given
         let sut = makeSUT()
-
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/users/me",
             method: .get
         )
 
-        let invalidJSONData = SampleResponseData.invalidJSON
-
-        MockURLProtocol.setRequestHandler { request in
+        StubURLProtocol.setRequestHandler { request in
             let response = try makeHTTPURLResponse(
                 url: try XCTUnwrap(request.url),
                 statusCode: 200
             )
-
-            return (response, invalidJSONData)
+            return (response, SampleResponseData.invalidJSON)
         }
 
+        // when / then
         do {
-            let _: MockUserResponseDTO = try await sut.request(endpoint, as: MockUserResponseDTO.self)
+            let _: UserResponseFixture = try await sut.request(endpoint, as: UserResponseFixture.self)
             XCTFail("Expected decoding error, but succeeded.")
         } catch let error as NetworkError {
             switch error {
@@ -155,18 +151,19 @@ final class URLSessionNetworkClientTests: XCTestCase {
     }
 
     func test_request_whenTransportErrorOccurs_throwsTransportError() async throws {
+        // given
         let sut = makeSUT()
-
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/users/me",
             method: .get
         )
 
-        MockURLProtocol.setRequestHandler { _ in
+        StubURLProtocol.setRequestHandler { _ in
             throw URLError(.notConnectedToInternet)
         }
 
+        // when / then
         do {
             let _ = try await sut.request(endpoint)
             XCTFail("Expected transport error, but succeeded.")
@@ -181,27 +178,27 @@ final class URLSessionNetworkClientTests: XCTestCase {
             XCTFail("Expected NetworkError, got \(error)")
         }
     }
-    
-    func test_request_whenStatusCodeIs401_throwsUnauthorized() async throws {
-        let sut = makeSUT()
 
+    func test_request_whenStatusCodeIs401_throwsUnauthorized() async throws {
+        // given
+        let sut = makeSUT()
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/protected",
             method: .get
         )
 
-        MockURLProtocol.setRequestHandler { request in
+        StubURLProtocol.setRequestHandler { request in
             let response = try makeHTTPURLResponse(
                 url: try XCTUnwrap(request.url),
                 statusCode: 401
             )
-
             return (response, Data())
         }
 
+        // when / then
         do {
-            let _: MockUserResponseDTO = try await sut.request(endpoint, as: MockUserResponseDTO.self)
+            let _: UserResponseFixture = try await sut.request(endpoint, as: UserResponseFixture.self)
             XCTFail("Expected .unauthorized")
         } catch let error as NetworkError {
             switch error {
@@ -214,25 +211,25 @@ final class URLSessionNetworkClientTests: XCTestCase {
     }
 
     func test_request_whenStatusCodeIs403_throwsForbidden() async throws {
+        // given
         let sut = makeSUT()
-
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/protected",
             method: .get
         )
 
-        MockURLProtocol.setRequestHandler { request in
+        StubURLProtocol.setRequestHandler { request in
             let response = try makeHTTPURLResponse(
                 url: try XCTUnwrap(request.url),
                 statusCode: 403
             )
-
             return (response, Data())
         }
 
+        // when / then
         do {
-            let _: MockUserResponseDTO = try await sut.request(endpoint, as: MockUserResponseDTO.self)
+            let _: UserResponseFixture = try await sut.request(endpoint, as: UserResponseFixture.self)
             XCTFail("Expected .forbidden")
         } catch let error as NetworkError {
             switch error {
@@ -245,25 +242,25 @@ final class URLSessionNetworkClientTests: XCTestCase {
     }
 
     func test_request_whenResponseDataIsEmpty_throwsEmptyResponse() async throws {
+        // given
         let sut = makeSUT()
-
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/users/me",
             method: .get
         )
 
-        MockURLProtocol.setRequestHandler { request in
+        StubURLProtocol.setRequestHandler { request in
             let response = try makeHTTPURLResponse(
                 url: try XCTUnwrap(request.url),
                 statusCode: 200
             )
-
             return (response, Data())
         }
 
+        // when / then
         do {
-            let _: MockUserResponseDTO = try await sut.request(endpoint, as: MockUserResponseDTO.self)
+            let _: UserResponseFixture = try await sut.request(endpoint, as: UserResponseFixture.self)
             XCTFail("Expected .emptyResponse")
         } catch let error as NetworkError {
             switch error {
@@ -276,18 +273,19 @@ final class URLSessionNetworkClientTests: XCTestCase {
     }
 
     func test_request_whenTransportErrorIsTimeout_throwsTimeout() async throws {
+        // given
         let sut = makeSUT()
-
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/users/me",
             method: .get
         )
 
-        MockURLProtocol.setRequestHandler { _ in
+        StubURLProtocol.setRequestHandler { _ in
             throw URLError(.timedOut)
         }
 
+        // when / then
         do {
             let _ = try await sut.request(endpoint)
             XCTFail("Expected .timeout")
@@ -302,13 +300,15 @@ final class URLSessionNetworkClientTests: XCTestCase {
     }
 }
 
+// MARK: - Helpers
+
 private extension URLSessionNetworkClientTests {
     func makeSUT(
         token: String? = nil,
         defaultHeaders: [String: String] = [:]
     ) -> URLSessionNetworkClient {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [MockURLProtocol.self]
+        configuration.protocolClasses = [StubURLProtocol.self]
 
         let session = URLSession(configuration: configuration)
 

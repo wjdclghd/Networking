@@ -7,20 +7,30 @@
 
 import Foundation
 
+/// Endpoint를 URLRequest로 변환하고 인증 header를 적용합니다.
 public struct NetworkRequestBuilder {
     private let authorizationProvider: AuthorizationProvider?
     private let authorizationProviderAsync: AuthorizationProviderAsync?
     private let configuration: NetworkConfiguration
     private let encoderFactory: @Sendable () -> JSONEncoder
 
+    /// 설정에 포함된 network event logger입니다.
     public var logger: NetworkEventLogger? {
         configuration.logger
     }
 
+    /// 설정에 포함된 retry policy입니다.
     public var retryPolicy: NetworkRetryPolicy? {
         configuration.retryPolicy
     }
 
+    /// 요청 builder를 생성합니다.
+    ///
+    /// - Parameters:
+    ///   - authorizationProvider: 동기 bearer token 제공자입니다.
+    ///   - authorizationProviderAsync: 비동기 bearer token 제공자입니다.
+    ///   - configuration: 요청 생성과 실행에 사용할 네트워크 설정입니다.
+    ///   - encoderFactory: JSON body 인코딩에 사용할 encoder 생성 클로저입니다.
     public init(
         authorizationProvider: AuthorizationProvider? = nil,
         authorizationProviderAsync: AuthorizationProviderAsync? = nil,
@@ -33,6 +43,11 @@ public struct NetworkRequestBuilder {
         self.encoderFactory = encoderFactory
     }
 
+    /// Endpoint 정보를 URLRequest로 변환합니다.
+    ///
+    /// - Parameter endpoint: 변환할 Endpoint입니다.
+    /// - Returns: Endpoint 값이 반영된 URLRequest입니다.
+    /// - Throws: URL 생성, 인증 정보, body 인코딩 실패 시 `NetworkError`를 던집니다.
     public func build(from endpoint: Endpoint) throws -> URLRequest {
         let normalizedPath = endpoint.path.hasPrefix("/")
             ? String(endpoint.path.dropFirst())
@@ -108,6 +123,13 @@ public struct NetworkRequestBuilder {
         return request
     }
 
+    /// 요청에 Authorization header를 적용합니다.
+    ///
+    /// - Parameters:
+    ///   - request: Authorization header를 적용할 URLRequest입니다.
+    ///   - requiresAuthorization: Authorization header가 필요한지 여부입니다.
+    /// - Returns: Authorization header가 반영된 URLRequest입니다.
+    /// - Throws: 인증이 필요하지만 token이 없으면 `NetworkError.missingAuthorization`을 던집니다.
     public func applyAuthorization(
         to request: URLRequest,
         requiresAuthorization: Bool

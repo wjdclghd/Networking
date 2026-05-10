@@ -1,0 +1,148 @@
+# =========================
+# macOS 공통 생성 파일
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+*.icloud
+
+# =========================
+# Xcode / Swift 로컬 사용자 설정 파일
+# =========================
+**/xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.hmap
+
+# 빌드 산출물
+build/
+DerivedData/
+**/Derived/
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.gcno
+
+# XCTest / UITest / 코드 커버리지 산출물
+*.xcresult
+*.xccovreport
+*.xccovarchive
+*.profdata
+
+# Playground 관련 파일
+timeline.xctimeline
+playground.xcworkspace
+
+# =========================
+# Swift Package Manager
+# =========================
+.swiftpm/
+.build/
+
+# Package.resolved 정책
+# - 앱 레포에서는 보통 커밋 권장
+# - 라이브러리 / 모듈 레포에서는 팀 정책에 따라 ignore 가능
+# Package.resolved
+
+# =========================
+# Tuist / Xcode 생성 프로젝트 파일
+# =========================
+# 기본 정책
+# - 일반적으로 생성된 xcodeproj / xcworkspace 내부 파일은 커밋하지 않음
+# - 단, CI 폴더 아래 테스트용 project / workspace 는 커밋 가능하도록 예외 허용
+**/*.xcodeproj/*
+**/*.xcworkspace/*
+
+# CI 폴더 아래 xcodeproj 예외 허용
+!CI/**/*.xcodeproj/project.pbxproj
+!CI/**/*.xcodeproj/xcshareddata/
+!CI/**/*.xcodeproj/xcshareddata/**
+!CI/**/*.xcodeproj/project.xcworkspace/
+!CI/**/*.xcodeproj/project.xcworkspace/xcshareddata/
+!CI/**/*.xcodeproj/project.xcworkspace/xcshareddata/**
+
+# CI 폴더 아래 xcworkspace 예외 허용
+!CI/**/*.xcworkspace/contents.xcworkspacedata
+!CI/**/*.xcworkspace/xcshareddata/
+!CI/**/*.xcworkspace/xcshareddata/**
+
+# Xcode가 생성하는 워크스페이스 설정 / SPM 해석 파일
+**/xcshareddata/WorkspaceSettings.xcsettings
+**/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+# 참고
+# Workspace.swift / Project.swift / Tuist.swift 는 Swift 파일이므로 영향 없음
+
+# =========================
+# 로컬 환경 설정 파일
+# =========================
+**/*.xcconfig.local
+.env
+.env.*
+
+# =========================
+# 외부 의존성 도구 산출물
+# =========================
+Pods/
+Carthage/Build/
+Dependencies/
+.accio/
+
+# =========================
+# fastlane 산출물
+# =========================
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+fastlane/DerivedData/
+fastlane/logs/
+
+# =========================
+# Ruby / Bundler
+# =========================
+.bundle/
+vendor/
+.ruby-version
+
+# =========================
+# 로그 / IDE 설정
+# =========================
+*.log
+.idea/
+
+# =========================
+# 기타 임시 파일
+# =========================
+iOSInjectionProject/
+
+# =========================
+# 문서 / 계획 파일
+# =========================
+/Docs/
+**/CLAUDE.md
+**/AGENTS.md

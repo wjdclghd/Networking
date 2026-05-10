@@ -1,5 +1,5 @@
 //
-//  MockNetworkClient.swift
+//  StubNetworkClient.swift
 //  Networking
 //
 //  Created by jch on 3/22/26.
@@ -8,7 +8,8 @@
 import Foundation
 @testable import Networking
 
-final class MockNetworkClient: NetworkClientProtocol, @unchecked Sendable {
+/// 테스트에서 네트워크 응답을 고정값으로 주입하는 Stub입니다.
+final class StubNetworkClient: NetworkClientProtocol, @unchecked Sendable {
     var dataResult: Result<Data, Error> = .failure(NetworkError.unknown)
     var decodedResult: Result<Any, Error> = .failure(NetworkError.unknown)
 

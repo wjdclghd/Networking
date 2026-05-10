@@ -9,14 +9,18 @@ import Foundation
 import XCTest
 @testable import Networking
 
+/// `Endpoint` 초기화 시 프로퍼티 저장과 task 구성을 검증합니다.
 final class EndpointTests: XCTestCase {
-    func test_init_storesAllProperties() throws {
+
+    func test_init_whenAllParametersProvided_storesAllProperties() throws {
+        // given
         let baseURL = try makeURL("https://example.com")
         let queryItems = [
             URLQueryItem(name: "q", value: "swift"),
             URLQueryItem(name: "page", value: "1")
         ]
 
+        // when
         let endpoint = Endpoint(
             baseURL: baseURL,
             path: "/search",
@@ -27,6 +31,7 @@ final class EndpointTests: XCTestCase {
             requiresAuthorization: true
         )
 
+        // then
         XCTAssertEqual(endpoint.baseURL, baseURL)
         XCTAssertEqual(endpoint.path, "/search")
         XCTAssertEqual(endpoint.method, .get)
@@ -39,15 +44,19 @@ final class EndpointTests: XCTestCase {
         switch endpoint.task {
         case .plain:
             XCTAssertTrue(true)
-        default:
+        case .jsonEncodable:
+            XCTFail("Expected .plain task")
+        case .formURLEncoded:
             XCTFail("Expected .plain task")
         }
     }
 
-    func test_init_whenUsingJSONTask_storesTask() throws {
+    func test_init_whenJSONTask_storesJSONTask() throws {
+        // given
         let baseURL = try makeURL("https://example.com")
-        let body = MockRequestBody(keyword: "chatgpt", page: 1)
+        let body = RequestBodyFixture(keyword: "chatgpt", page: 1)
 
+        // when
         let endpoint = Endpoint(
             baseURL: baseURL,
             path: "/v1/search",
@@ -55,17 +64,22 @@ final class EndpointTests: XCTestCase {
             task: .jsonEncodable(AnyEncodable(body))
         )
 
+        // then
         switch endpoint.task {
         case .jsonEncodable:
             XCTAssertTrue(true)
-        default:
+        case .plain:
+            XCTFail("Expected .jsonEncodable task")
+        case .formURLEncoded:
             XCTFail("Expected .jsonEncodable task")
         }
     }
 
-    func test_init_whenUsingFormTask_storesTask() throws {
+    func test_init_whenFormURLEncodedTask_storesFormURLEncodedTask() throws {
+        // given
         let baseURL = try makeURL("https://example.com")
 
+        // when
         let endpoint = Endpoint(
             baseURL: baseURL,
             path: "/login",
@@ -76,11 +90,14 @@ final class EndpointTests: XCTestCase {
             ])
         )
 
+        // then
         switch endpoint.task {
         case .formURLEncoded(let parameters):
             XCTAssertEqual(parameters["email"], "test@example.com")
             XCTAssertEqual(parameters["password"], "1234")
-        default:
+        case .plain:
+            XCTFail("Expected .formURLEncoded task")
+        case .jsonEncodable:
             XCTFail("Expected .formURLEncoded task")
         }
     }

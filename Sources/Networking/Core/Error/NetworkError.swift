@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 네트워크 계층에서 사용하는 오류입니다.
 public enum NetworkError: Error, LocalizedError {
     case invalidURL
     case invalidRequest
@@ -25,6 +26,7 @@ public enum NetworkError: Error, LocalizedError {
     case server(statusCode: Int, data: Data?)
     case unknown
 
+    /// 사용자에게 표시할 수 있는 오류 설명입니다.
     public var errorDescription: String? {
         switch self {
         case .invalidURL:

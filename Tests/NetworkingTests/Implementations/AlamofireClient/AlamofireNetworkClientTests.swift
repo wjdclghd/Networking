@@ -10,26 +10,30 @@ import XCTest
 import Alamofire
 @testable import Networking
 
+/// `AlamofireNetworkClient`의 요청 실행, 응답 디코딩, 에러 매핑을 검증합니다.
 final class AlamofireNetworkClientTests: XCTestCase {
-    override func tearDown() {
-        super.tearDown()
-        MockURLProtocol.removeHandler()
+
+    // MARK: - Setup
+
+    override func tearDownWithError() throws {
+        StubURLProtocol.removeHandler()
+        try super.tearDownWithError()
     }
 
-    func test_request_whenResponseIsSuccessful_returnsDecodedModel() async throws {
-        let sut = makeSUT(token: "test-token")
+    // MARK: - Tests
 
+    func test_request_whenResponseIsSuccessful_returnsDecodedModel() async throws {
+        // given
+        let sut = makeSUT(token: "test-token")
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/users/me",
             method: .get,
             requiresAuthorization: true
         )
+        let expectedDTO = UserResponseFixture(id: 1, name: "jch")
 
-        let responseDTO = MockUserResponseDTO(id: 1, name: "jch")
-        let responseData = SampleResponseData.validUser
-
-        MockURLProtocol.setRequestHandler { request in
+        StubURLProtocol.setRequestHandler { request in
             XCTAssertEqual(request.httpMethod, "GET")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
 
@@ -37,37 +41,37 @@ final class AlamofireNetworkClientTests: XCTestCase {
                 url: try XCTUnwrap(request.url),
                 statusCode: 200
             )
-
-            return (response, responseData)
+            return (response, SampleResponseData.validUser)
         }
 
-        let result = try await sut.request(endpoint, as: MockUserResponseDTO.self)
+        // when
+        let result = try await sut.request(endpoint, as: UserResponseFixture.self)
 
-        XCTAssertEqual(result, responseDTO)
+        // then
+        XCTAssertEqual(result, expectedDTO)
     }
 
     func test_request_whenStatusCodeIsNot2xx_throwsServerError() async throws {
+        // given
         let sut = makeSUT()
-
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/users/me",
             method: .get
         )
-
         let expectedData = Data("server-error".utf8)
 
-        MockURLProtocol.setRequestHandler { request in
+        StubURLProtocol.setRequestHandler { request in
             let response = try makeHTTPURLResponse(
                 url: try XCTUnwrap(request.url),
                 statusCode: 500
             )
-
             return (response, expectedData)
         }
 
+        // when / then
         do {
-            let _: MockUserResponseDTO = try await sut.request(endpoint, as: MockUserResponseDTO.self)
+            let _: UserResponseFixture = try await sut.request(endpoint, as: UserResponseFixture.self)
             XCTFail("Expected .server error, but succeeded.")
         } catch let error as NetworkError {
             switch error {
@@ -83,18 +87,19 @@ final class AlamofireNetworkClientTests: XCTestCase {
     }
 
     func test_request_whenTransportErrorOccurs_throwsTransportError() async throws {
+        // given
         let sut = makeSUT()
-
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/health",
             method: .get
         )
 
-        MockURLProtocol.setRequestHandler { _ in
+        StubURLProtocol.setRequestHandler { _ in
             throw URLError(.notConnectedToInternet)
         }
 
+        // when / then
         do {
             let _ = try await sut.request(endpoint)
             XCTFail("Expected .transport error, but succeeded.")
@@ -111,27 +116,25 @@ final class AlamofireNetworkClientTests: XCTestCase {
     }
 
     func test_request_whenDecodingFails_throwsDecodingError() async throws {
+        // given
         let sut = makeSUT()
-
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/users/me",
             method: .get
         )
 
-        let invalidJSONData = SampleResponseData.invalidJSON
-
-        MockURLProtocol.setRequestHandler { request in
+        StubURLProtocol.setRequestHandler { request in
             let response = try makeHTTPURLResponse(
                 url: try XCTUnwrap(request.url),
                 statusCode: 200
             )
-
-            return (response, invalidJSONData)
+            return (response, SampleResponseData.invalidJSON)
         }
 
+        // when / then
         do {
-            let _: MockUserResponseDTO = try await sut.request(endpoint, as: MockUserResponseDTO.self)
+            let _: UserResponseFixture = try await sut.request(endpoint, as: UserResponseFixture.self)
             XCTFail("Expected .decoding error, but succeeded.")
         } catch let error as NetworkError {
             switch error {
@@ -144,27 +147,27 @@ final class AlamofireNetworkClientTests: XCTestCase {
             XCTFail("Expected NetworkError, got \(error)")
         }
     }
-    
-    func test_request_whenStatusCodeIs401_throwsUnauthorized() async throws {
-        let sut = makeSUT()
 
+    func test_request_whenStatusCodeIs401_throwsUnauthorized() async throws {
+        // given
+        let sut = makeSUT()
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/protected",
             method: .get
         )
 
-        MockURLProtocol.setRequestHandler { request in
+        StubURLProtocol.setRequestHandler { request in
             let response = try makeHTTPURLResponse(
                 url: try XCTUnwrap(request.url),
                 statusCode: 401
             )
-
             return (response, Data())
         }
 
+        // when / then
         do {
-            let _: MockUserResponseDTO = try await sut.request(endpoint, as: MockUserResponseDTO.self)
+            let _: UserResponseFixture = try await sut.request(endpoint, as: UserResponseFixture.self)
             XCTFail("Expected .unauthorized")
         } catch let error as NetworkError {
             switch error {
@@ -177,25 +180,25 @@ final class AlamofireNetworkClientTests: XCTestCase {
     }
 
     func test_request_whenStatusCodeIs403_throwsForbidden() async throws {
+        // given
         let sut = makeSUT()
-
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/protected",
             method: .get
         )
 
-        MockURLProtocol.setRequestHandler { request in
+        StubURLProtocol.setRequestHandler { request in
             let response = try makeHTTPURLResponse(
                 url: try XCTUnwrap(request.url),
                 statusCode: 403
             )
-
             return (response, Data())
         }
 
+        // when / then
         do {
-            let _: MockUserResponseDTO = try await sut.request(endpoint, as: MockUserResponseDTO.self)
+            let _: UserResponseFixture = try await sut.request(endpoint, as: UserResponseFixture.self)
             XCTFail("Expected .forbidden")
         } catch let error as NetworkError {
             switch error {
@@ -208,25 +211,25 @@ final class AlamofireNetworkClientTests: XCTestCase {
     }
 
     func test_request_whenResponseDataIsEmpty_throwsEmptyResponse() async throws {
+        // given
         let sut = makeSUT()
-
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/users/me",
             method: .get
         )
 
-        MockURLProtocol.setRequestHandler { request in
+        StubURLProtocol.setRequestHandler { request in
             let response = try makeHTTPURLResponse(
                 url: try XCTUnwrap(request.url),
                 statusCode: 200
             )
-
             return (response, Data())
         }
 
+        // when / then
         do {
-            let _: MockUserResponseDTO = try await sut.request(endpoint, as: MockUserResponseDTO.self)
+            let _: UserResponseFixture = try await sut.request(endpoint, as: UserResponseFixture.self)
             XCTFail("Expected .emptyResponse")
         } catch let error as NetworkError {
             switch error {
@@ -239,10 +242,12 @@ final class AlamofireNetworkClientTests: XCTestCase {
     }
 }
 
+// MARK: - Helpers
+
 private extension AlamofireNetworkClientTests {
     func makeSUT(token: String? = nil) -> AlamofireNetworkClient {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [MockURLProtocol.self]
+        configuration.protocolClasses = [StubURLProtocol.self]
 
         let session = Session(configuration: configuration)
 

@@ -10,27 +10,37 @@ import XCTest
 import Combine
 @testable import Networking
 
+/// `NetworkClientProtocol`의 Combine publisher 확장 메서드를 검증합니다.
 final class NetworkClientProtocolCombineTests: XCTestCase {
-    private var cancellables: Set<AnyCancellable> = []
 
-    override func tearDown() {
-        cancellables.removeAll()
-        super.tearDown()
+    // MARK: - Properties
+
+    private var cancellables: Set<AnyCancellable>!
+
+    // MARK: - Setup
+
+    override func tearDownWithError() throws {
+        cancellables = nil
+        try super.tearDownWithError()
     }
 
+    // MARK: - Tests
+
     func test_publisherData_whenAsyncRequestSucceeds_emitsData() throws {
-        let sut = MockNetworkClient()
+        // given
+        let sut = StubNetworkClient()
         let expectedData = Data("success".utf8)
         sut.dataResult = .success(expectedData)
+        cancellables = []
 
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/health",
             method: .get
         )
-
         let expectation = expectation(description: "publisher emits data")
 
+        // when
         sut.publisher(endpoint)
             .sink(
                 receiveCompletion: { completion in
@@ -39,6 +49,7 @@ final class NetworkClientProtocolCombineTests: XCTestCase {
                     }
                 },
                 receiveValue: { value in
+                    // then
                     XCTAssertEqual(value, expectedData)
                     expectation.fulfill()
                 }
@@ -49,17 +60,19 @@ final class NetworkClientProtocolCombineTests: XCTestCase {
     }
 
     func test_publisherData_whenAsyncRequestFails_emitsFailure() throws {
-        let sut = MockNetworkClient()
+        // given
+        let sut = StubNetworkClient()
         sut.dataResult = .failure(NetworkError.invalidRequest)
+        cancellables = []
 
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/health",
             method: .get
         )
-
         let expectation = expectation(description: "publisher emits failure")
 
+        // when
         sut.publisher(endpoint)
             .sink(
                 receiveCompletion: { completion in
@@ -67,6 +80,7 @@ final class NetworkClientProtocolCombineTests: XCTestCase {
                     case .finished:
                         XCTFail("Expected failure, got finished")
                     case .failure(let error):
+                        // then
                         switch error {
                         case .invalidRequest:
                             XCTAssertTrue(true)
@@ -86,19 +100,21 @@ final class NetworkClientProtocolCombineTests: XCTestCase {
     }
 
     func test_publisherDecodable_whenAsyncRequestSucceeds_emitsDecodedValue() throws {
-        let sut = MockNetworkClient()
-        let expectedValue = MockUserResponseDTO(id: 1, name: "jch")
+        // given
+        let sut = StubNetworkClient()
+        let expectedValue = UserResponseFixture(id: 1, name: "jch")
         sut.decodedResult = .success(expectedValue)
+        cancellables = []
 
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/users/me",
             method: .get
         )
-
         let expectation = expectation(description: "publisher emits decoded value")
 
-        sut.publisher(endpoint, as: MockUserResponseDTO.self)
+        // when
+        sut.publisher(endpoint, as: UserResponseFixture.self)
             .sink(
                 receiveCompletion: { completion in
                     if case .failure(let error) = completion {
@@ -106,6 +122,7 @@ final class NetworkClientProtocolCombineTests: XCTestCase {
                     }
                 },
                 receiveValue: { value in
+                    // then
                     XCTAssertEqual(value, expectedValue)
                     expectation.fulfill()
                 }
@@ -115,25 +132,28 @@ final class NetworkClientProtocolCombineTests: XCTestCase {
         wait(for: [expectation], timeout: 1.0)
     }
 
-    func test_publisherDecodable_whenAsyncRequestFails_emitsFailure() throws {
-        let sut = MockNetworkClient()
+    func test_publisherDecodable_whenAsyncRequestFails_emitsDecodingFailure() throws {
+        // given
+        let sut = StubNetworkClient()
         sut.decodedResult = .failure(NetworkError.decoding(URLError(.cannotDecodeContentData)))
+        cancellables = []
 
         let endpoint = Endpoint(
             baseURL: try makeURL("https://example.com"),
             path: "/users/me",
             method: .get
         )
-
         let expectation = expectation(description: "publisher emits decode failure")
 
-        sut.publisher(endpoint, as: MockUserResponseDTO.self)
+        // when
+        sut.publisher(endpoint, as: UserResponseFixture.self)
             .sink(
                 receiveCompletion: { completion in
                     switch completion {
                     case .finished:
                         XCTFail("Expected failure, got finished")
                     case .failure(let error):
+                        // then
                         switch error {
                         case .decoding:
                             XCTAssertTrue(true)

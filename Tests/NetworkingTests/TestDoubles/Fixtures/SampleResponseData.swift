@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  SampleResponseData.swift
 //  Networking
 //
 //  Created by jch on 3/22/26.

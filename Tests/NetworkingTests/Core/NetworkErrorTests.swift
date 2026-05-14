@@ -44,12 +44,28 @@ final class NetworkErrorTests: XCTestCase {
         XCTAssertTrue(sut.errorDescription?.contains("네트워크 전송 오류") == true)
     }
 
-    func test_errorDescription_whenServer_returnsExpectedMessage() {
+    func test_errorDescription_whenHTTPErrorWithoutPayload_returnsExpectedMessage() {
         // given / when
-        let sut = NetworkError.server(statusCode: 500, data: nil)
+        let sut = NetworkError.http(NetworkHTTPError(statusCode: 500))
 
         // then
-        XCTAssertEqual(sut.errorDescription, "서버 오류가 발생했습니다. statusCode: 500")
+        XCTAssertEqual(sut.errorDescription, "HTTP 오류가 발생했습니다. statusCode: 500")
+    }
+
+    func test_errorDescription_whenHTTPErrorWithPayload_returnsPayloadMessage() {
+        // given
+        let payload = NetworkErrorPayload(
+            code: "AUTH_INVALID_CREDENTIALS",
+            message: "이메일 또는 비밀번호가 올바르지 않습니다.",
+            details: [],
+            timestamp: "2026-05-10T09:00:00Z"
+        )
+
+        // when
+        let sut = NetworkError.http(NetworkHTTPError(statusCode: 401, payload: payload))
+
+        // then
+        XCTAssertEqual(sut.errorDescription, "이메일 또는 비밀번호가 올바르지 않습니다.")
     }
 
     func test_errorDescription_whenDecoding_returnsExpectedMessage() {
@@ -74,22 +90,6 @@ final class NetworkErrorTests: XCTestCase {
 
         // then
         XCTAssertTrue(sut.errorDescription?.contains("인코딩 오류") == true)
-    }
-
-    func test_errorDescription_whenUnauthorized_returnsExpectedMessage() {
-        // given / when
-        let sut = NetworkError.unauthorized
-
-        // then
-        XCTAssertEqual(sut.errorDescription, "인증이 필요합니다.")
-    }
-
-    func test_errorDescription_whenForbidden_returnsExpectedMessage() {
-        // given / when
-        let sut = NetworkError.forbidden
-
-        // then
-        XCTAssertEqual(sut.errorDescription, "접근 권한이 없습니다.")
     }
 
     func test_errorDescription_whenTimeout_returnsExpectedMessage() {

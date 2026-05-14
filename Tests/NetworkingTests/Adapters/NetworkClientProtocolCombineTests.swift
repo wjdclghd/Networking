@@ -99,6 +99,61 @@ final class NetworkClientProtocolCombineTests: XCTestCase {
         wait(for: [expectation], timeout: 1.0)
     }
 
+    func test_publisherData_whenAsyncRequestFailsWithHTTPError_emitsHTTPFailure() throws {
+        // given
+        let sut = StubNetworkClient()
+        let payload = NetworkErrorPayload(
+            code: "RATE_LIMIT_EXCEEDED",
+            message: "요청 횟수가 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+            details: [],
+            timestamp: "2026-05-10T09:00:00Z"
+        )
+        sut.dataResult = .failure(
+            NetworkError.http(
+                NetworkHTTPError(
+                    statusCode: 429,
+                    payload: payload,
+                    data: SampleResponseData.rateLimitExceededError
+                )
+            )
+        )
+        cancellables = []
+
+        let endpoint = Endpoint(
+            baseURL: try makeURL("https://example.com"),
+            path: "/api/auth/login",
+            method: .post
+        )
+        let expectation = expectation(description: "publisher emits HTTP failure")
+
+        // when
+        sut.publisher(endpoint)
+            .sink(
+                receiveCompletion: { completion in
+                    switch completion {
+                    case .finished:
+                        XCTFail("Expected failure, got finished")
+                    case .failure(let error):
+                        // then
+                        switch error {
+                        case .http(let httpError):
+                            XCTAssertEqual(httpError.statusCode, 429)
+                            XCTAssertEqual(httpError.payload?.code, "RATE_LIMIT_EXCEEDED")
+                            expectation.fulfill()
+                        default:
+                            XCTFail("Expected .http, got \(error)")
+                        }
+                    }
+                },
+                receiveValue: { _ in
+                    XCTFail("Expected no value")
+                }
+            )
+            .store(in: &cancellables)
+
+        wait(for: [expectation], timeout: 1.0)
+    }
+
     func test_publisherDecodable_whenAsyncRequestSucceeds_emitsDecodedValue() throws {
         // given
         let sut = StubNetworkClient()

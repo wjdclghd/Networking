@@ -15,17 +15,27 @@ public struct NetworkResponseMapper {
     ///   - statusCode: HTTP status code입니다.
     ///   - data: 응답 body Data입니다.
     /// - Returns: 성공 응답의 body Data입니다.
-    /// - Throws: 실패 status code에 대응하는 `NetworkError`를 던집니다.
+    /// - Throws: 실패 status code는 `NetworkError.http`를 던집니다.
     public static func map(statusCode: Int, data: Data?) throws -> Data {
         switch statusCode {
         case 200..<300:
             return data ?? Data()
-        case 401:
-            throw NetworkError.unauthorized
-        case 403:
-            throw NetworkError.forbidden
         default:
-            throw NetworkError.server(statusCode: statusCode, data: data)
+            throw NetworkError.http(
+                NetworkHTTPError(
+                    statusCode: statusCode,
+                    payload: decodePayload(from: data),
+                    data: data
+                )
+            )
         }
+    }
+
+    private static func decodePayload(from data: Data?) -> NetworkErrorPayload? {
+        guard let data, data.isEmpty == false else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(NetworkErrorPayload.self, from: data)
     }
 }

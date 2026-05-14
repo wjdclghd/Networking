@@ -82,7 +82,7 @@ final class URLSessionNetworkClientTests: XCTestCase {
         XCTAssertEqual(result, expectedData)
     }
 
-    func test_request_whenStatusCodeIsNot2xx_throwsServerError() async throws {
+    func test_request_whenStatusCodeIsNot2xx_throwsHTTPError() async throws {
         // given
         let sut = makeSUT()
         let endpoint = Endpoint(
@@ -103,14 +103,15 @@ final class URLSessionNetworkClientTests: XCTestCase {
         // when / then
         do {
             let _: UserResponseFixture = try await sut.request(endpoint, as: UserResponseFixture.self)
-            XCTFail("Expected server error, but succeeded.")
+            XCTFail("Expected HTTP error, but succeeded.")
         } catch let error as NetworkError {
             switch error {
-            case .server(let statusCode, let data):
-                XCTAssertEqual(statusCode, 500)
-                XCTAssertEqual(data, expectedData)
+            case .http(let httpError):
+                XCTAssertEqual(httpError.statusCode, 500)
+                XCTAssertEqual(httpError.data, expectedData)
+                XCTAssertNil(httpError.payload)
             default:
-                XCTFail("Expected .server error, got \(error)")
+                XCTFail("Expected .http error, got \(error)")
             }
         } catch {
             XCTFail("Expected NetworkError, got \(error)")
@@ -179,7 +180,7 @@ final class URLSessionNetworkClientTests: XCTestCase {
         }
     }
 
-    func test_request_whenStatusCodeIs401_throwsUnauthorized() async throws {
+    func test_request_whenStatusCodeIs401_throwsHTTPErrorWithPayload() async throws {
         // given
         let sut = makeSUT()
         let endpoint = Endpoint(
@@ -193,24 +194,26 @@ final class URLSessionNetworkClientTests: XCTestCase {
                 url: try XCTUnwrap(request.url),
                 statusCode: 401
             )
-            return (response, Data())
+            return (response, SampleResponseData.invalidRefreshTokenError)
         }
 
         // when / then
         do {
             let _: UserResponseFixture = try await sut.request(endpoint, as: UserResponseFixture.self)
-            XCTFail("Expected .unauthorized")
+            XCTFail("Expected .http")
         } catch let error as NetworkError {
             switch error {
-            case .unauthorized:
-                XCTAssertTrue(true)
+            case .http(let httpError):
+                XCTAssertEqual(httpError.statusCode, 401)
+                XCTAssertEqual(httpError.payload?.code, "AUTH_INVALID_REFRESH_TOKEN")
+                XCTAssertEqual(httpError.data, SampleResponseData.invalidRefreshTokenError)
             default:
-                XCTFail("Expected .unauthorized, got \(error)")
+                XCTFail("Expected .http, got \(error)")
             }
         }
     }
 
-    func test_request_whenStatusCodeIs403_throwsForbidden() async throws {
+    func test_request_whenStatusCodeIs403_throwsHTTPErrorWithPayload() async throws {
         // given
         let sut = makeSUT()
         let endpoint = Endpoint(
@@ -224,21 +227,48 @@ final class URLSessionNetworkClientTests: XCTestCase {
                 url: try XCTUnwrap(request.url),
                 statusCode: 403
             )
-            return (response, Data())
+            return (response, SampleResponseData.inactiveUserError)
         }
 
         // when / then
         do {
             let _: UserResponseFixture = try await sut.request(endpoint, as: UserResponseFixture.self)
-            XCTFail("Expected .forbidden")
+            XCTFail("Expected .http")
         } catch let error as NetworkError {
             switch error {
-            case .forbidden:
-                XCTAssertTrue(true)
+            case .http(let httpError):
+                XCTAssertEqual(httpError.statusCode, 403)
+                XCTAssertEqual(httpError.payload?.code, "AUTH_INACTIVE_USER")
+                XCTAssertEqual(httpError.data, SampleResponseData.inactiveUserError)
             default:
-                XCTFail("Expected .forbidden, got \(error)")
+                XCTFail("Expected .http, got \(error)")
             }
         }
+    }
+
+    func test_request_whenEmptyResponseIsAllowed_returnsEmptyResponse() async throws {
+        // given
+        let sut = makeSUT()
+        let endpoint = Endpoint(
+            baseURL: try makeURL("https://example.com"),
+            path: "/logout",
+            method: .post,
+            allowsEmptyResponse: true
+        )
+
+        StubURLProtocol.setRequestHandler { request in
+            let response = try makeHTTPURLResponse(
+                url: try XCTUnwrap(request.url),
+                statusCode: 204
+            )
+            return (response, Data())
+        }
+
+        // when
+        let result = try await sut.request(endpoint, as: EmptyResponse.self)
+
+        // then
+        XCTAssertNotNil(result)
     }
 
     func test_request_whenResponseDataIsEmpty_throwsEmptyResponse() async throws {

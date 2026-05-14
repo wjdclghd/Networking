@@ -16,14 +16,12 @@ public enum NetworkError: Error, LocalizedError {
     case encoding(Error)
     case decoding(Error)
 
-    case unauthorized
-    case forbidden
     case timeout
     case cancelled
     case emptyResponse
 
     case transport(Error)
-    case server(statusCode: Int, data: Data?)
+    case http(NetworkHTTPError)
     case unknown
 
     /// 사용자에게 표시할 수 있는 오류 설명입니다.
@@ -44,12 +42,6 @@ public enum NetworkError: Error, LocalizedError {
         case .decoding(let error):
             return "디코딩 오류가 발생했습니다. \(error.localizedDescription)"
 
-        case .unauthorized:
-            return "인증이 필요합니다."
-
-        case .forbidden:
-            return "접근 권한이 없습니다."
-
         case .timeout:
             return "요청 시간이 초과되었습니다."
 
@@ -62,8 +54,11 @@ public enum NetworkError: Error, LocalizedError {
         case .transport(let error):
             return "네트워크 전송 오류가 발생했습니다. \(error.localizedDescription)"
 
-        case .server(let statusCode, _):
-            return "서버 오류가 발생했습니다. statusCode: \(statusCode)"
+        case .http(let error):
+            if let message = error.payload?.message {
+                return message
+            }
+            return "HTTP 오류가 발생했습니다. statusCode: \(error.statusCode)"
 
         case .unknown:
             return "알 수 없는 네트워크 오류입니다."
